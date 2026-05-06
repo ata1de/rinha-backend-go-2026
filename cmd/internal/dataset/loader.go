@@ -4,12 +4,15 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"os"
+
+	search "rinha2026/cmd/internal/search"
 )
 
 type DB struct {
-	Vectors []float32 // flat: count * 16 floats
-	Labels  []uint8   // 0=legit, 1=fraud
+	Vectors []float32
+	Labels  []uint8
 	Count   int
+	Tree    *search.VPTree
 }
 
 type refEntry struct {
@@ -25,9 +28,11 @@ func Load(path string) (*DB, error) {
 	defer f.Close()
 
 	gz, err := gzip.NewReader(f)
+
 	if err != nil {
 		return nil, err
 	}
+
 	defer gz.Close()
 
 	var entries []refEntry
@@ -51,6 +56,12 @@ func Load(path string) (*DB, error) {
 	}
 
 	db := &DB{Vectors: vectors, Labels: labels, Count: count}
+
+	// Constrói a VP Tree uma única vez, antes do primeiro request chegar.
+	// knn.Build percorre os vetores e monta a estrutura de particionamento
+	// do espaço métrico em O(N log N). Custo pago só no startup.
+	db.Tree = search.Build(vectors, labels, count)
+
 	prefault(db)
 	return db, nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"rinha2026/cmd/internal/dataset"
-	"rinha2026/cmd/internal/knn"
 	"rinha2026/cmd/internal/vectorize"
 )
 
@@ -40,7 +39,7 @@ func main() {
 
 	for _, c := range cases {
 		vec := vectorize.Vectorize(&c.payload)
-		count := knn.KNN5(vec, db.Vectors, db.Labels, db.Count)
+		count := db.Tree.Search(vec)
 		score := float32(count) / 5.0
 		approved := count < 3
 		status := "✓"

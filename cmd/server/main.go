@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"rinha2026/cmd/internal/dataset"
-	"rinha2026/cmd/internal/knn"
 	"rinha2026/cmd/internal/vectorize"
 )
 
@@ -116,7 +115,7 @@ func warmup() {
 	}
 	for i := 0; i < 200; i++ {
 		v := vectorize.Vectorize(&p)
-		_ = knn.KNN5(v, db.Vectors, db.Labels, db.Count)
+		_ = db.Tree.Search(v) // VP Tree já está pronta em db — só consulta
 	}
 }
 
@@ -164,7 +163,7 @@ func handleFraudScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vec := vectorize.Vectorize(p)
-	count := knn.KNN5(vec, db.Vectors, db.Labels, db.Count)
+	count := db.Tree.Search(vec) // O(log N) via VP Tree em vez de O(N) scan linear
 	payloadPool.Put(p)
 
 	if count > 5 {

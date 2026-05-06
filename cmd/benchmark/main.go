@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"rinha2026/cmd/internal/dataset"
-	"rinha2026/cmd/internal/knn"
 	"rinha2026/cmd/internal/vectorize"
 	"time"
 )
@@ -25,14 +24,14 @@ func main() {
 	// Aquecimento do JIT
 	var sink uint8
 	for i := 0; i < 500; i++ {
-		sink += knn.KNN5(vec, db.Vectors, db.Labels, db.Count)
+		sink += db.Tree.Search(vec)
 	}
 
 	// Benchmark
 	N := 2000
 	start := time.Now()
 	for i := 0; i < N; i++ {
-		sink += knn.KNN5(vec, db.Vectors, db.Labels, db.Count)
+		sink += db.Tree.Search(vec)
 	}
 	_ = sink
 	elapsed := time.Since(start)

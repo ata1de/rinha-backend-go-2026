@@ -8,7 +8,6 @@ RUN go mod download
 
 COPY cmd/ ./cmd/
 
-# GOAMD64=v3 → habilita SSE4.2/AVX/AVX2/BMI no codegen, ajuda o loop de KNN.
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v3 \
     go build \
     -ldflags="-s -w" \
