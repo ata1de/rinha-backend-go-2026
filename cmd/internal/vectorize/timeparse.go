@@ -4,7 +4,7 @@ type fastTS struct {
 	year, month, day uint16
 	hour, min, sec   uint16
 	epochSec         int64
-	weekdayMonZero   uint8 // 0=mon..6=sun
+	weekdayMonZero   uint8
 }
 
 func parseFastTS(s string) (fastTS, bool) {

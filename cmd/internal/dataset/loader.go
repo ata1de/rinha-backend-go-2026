@@ -57,28 +57,25 @@ func Load(path string) (*DB, error) {
 
 	db := &DB{Vectors: vectors, Labels: labels, Count: count}
 
-	// Constrói a VP Tree uma única vez, antes do primeiro request chegar.
-	// knn.Build percorre os vetores e monta a estrutura de particionamento
-	// do espaço métrico em O(N log N). Custo pago só no startup.
 	db.Tree = search.Build(vectors, labels, count)
 
 	prefault(db)
 	return db, nil
 }
 
-// prefault toca cada página dos slices pra evitar minor page faults
-// na primeira request (que causariam spike no p99 inicial).
 func prefault(db *DB) {
-	const pageF32 = 4096 / 4 // 1024 float32 por página de 4KB
+	const pageF32 = 4096 / 4
 	var sink float32
 	for i := 0; i < len(db.Vectors); i += pageF32 {
 		sink += db.Vectors[i]
 	}
 	const pageU8 = 4096
 	var sinkU uint8
+
 	for i := 0; i < len(db.Labels); i += pageU8 {
 		sinkU += db.Labels[i]
 	}
+
 	// uso noop pra impedir DCE
 	if sink == 1234567 && sinkU == 255 {
 		println("unreachable")

@@ -17,8 +17,6 @@ type vpNode struct {
 	leafLen   int32
 }
 
-// VPTree é a estrutura que substitui o scan linear.
-// Construída uma vez em dataset.Load e reutilizada em todas as queries.
 type VPTree struct {
 	nodes   []vpNode
 	leafIdx []int32
@@ -49,7 +47,7 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 	nodeIdx := int32(len(t.nodes))
 	t.nodes = append(t.nodes, vpNode{inner: -1, outer: -1})
 
-	// ── Caso base: folha ──────────────────────────────────────────────────
+	// Caso base: folha
 	// Se o conjunto tem poucos pontos, salva os índices diretamente na folha. Na busca, esses pontos serão comparados via brute-force (rápido para N pequeno).
 	if len(indices) <= leafSize {
 		start := int32(len(t.leafIdx))
@@ -63,7 +61,7 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 		return nodeIdx
 	}
 
-	// ── Escolha do Vantage Point (VP) ─────────────────────────────────────
+	// Escolha do Vantage Point (VP)
 	// O VP é o ponto em torno do qual particionamos o espaço.
 
 	vp := indices[0]
@@ -76,7 +74,7 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 		dists[i] = distBetween(t.vectors, int(vp), int(idx))
 	}
 
-	// ── Encontra a mediana (mu) via quickselect ────────────────────────────
+	// Encontra a mediana (mu) via quickselect
 	// mu é o raio que divide inner (mais próximos do VP) de outer (mais distantes).
 	mid := len(rest) / 2
 	nthElement(dists, rest, mid)
@@ -84,7 +82,7 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 
 	t.nodes[nodeIdx].mu = mu
 
-	// ── Particiona em inner (dist ≤ mu) e outer (dist > mu) ───────────────
+	// Particiona em inner (dist ≤ mu) e outer (dist > mu)
 	innerIdx := rest[:0]
 	outerIdx := make([]int32, 0, len(rest)-mid)
 
@@ -96,7 +94,6 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 		}
 	}
 
-	// ── Recursão nos dois sub-grupos ──────────────────────────────────────
 	if len(innerIdx) > 0 {
 		t.nodes[nodeIdx].inner = t.buildNode(innerIdx)
 	}
@@ -108,9 +105,7 @@ func (t *VPTree) buildNode(indices []int32) int32 {
 	return nodeIdx
 }
 
-// ---------------------------------------------------------------------------
 // Search — busca os K vizinhos mais próximos em O(log N) médio
-// ---------------------------------------------------------------------------
 
 // Search retorna o número de vizinhos rotulados como fraude (0..K) entre os
 // K=5 mais próximos do query na VP Tree. Mesma semântica do antigo KNN5.
@@ -145,7 +140,7 @@ func (t *VPTree) searchNode(
 ) {
 	node := &t.nodes[nodeIdx]
 
-	// ── Caso: folha ────────────────────────────────────────────────────────
+	// Caso: folha
 	// Faz brute-force nos pontos da folha usando distância ao quadrado
 	// (sem sqrt), comparando contra worstNeighborDistance² — evita sqrt desnecessário.
 	if node.leafLen > 0 {
@@ -155,6 +150,7 @@ func (t *VPTree) searchNode(
 
 			if dsq < worstDistSq {
 				// Encontrou vizinho mais próximo: substitui o pior slot do top-K.
+
 				dist := float32(math.Sqrt(float64(dsq)))
 				(*neighborDistances)[*furthestNeighborSlot] = dist
 				(*neighborLabels)[*furthestNeighborSlot] = t.labels[idx]
@@ -166,7 +162,7 @@ func (t *VPTree) searchNode(
 		return
 	}
 
-	// ── Nó interno: calcula distância real do query ao VP ─────────────────
+	// Nó interno: calcula distância real do query ao VP
 	distToVP := distFromQuery(query, t.vectors, int(node.vpIdx))
 
 	// Tenta inserir o próprio VP no top-K.
@@ -177,7 +173,7 @@ func (t *VPTree) searchNode(
 		updateWorst(neighborDistances, worstNeighborDistance, furthestNeighborSlot)
 	}
 
-	// ── Poda por desigualdade triangular ──────────────────────────────────
+	// Poda por desigualdade triangular
 	//
 	// Seja p um ponto qualquer e VP o vantage point. Pela desigualdade triangular:
 	//   dist(query, p) ≥ |dist(query, VP) - dist(VP, p)|

@@ -15,7 +15,6 @@ type normalization struct {
 	MaxMerchantAvgAmount float32 `json:"max_merchant_avg_amount"`
 }
 
-// Pré-computamos o inverso pra trocar divisão por multiplicação no hot path.
 type normInv struct {
 	InvMaxAmount, InvMaxInstallments, InvAmountVsAvg float32
 	InvMaxMinutes, InvMaxKm, InvMaxTxCount24h        float32
@@ -26,8 +25,6 @@ var (
 	norm    normalization
 	invNorm normInv
 
-	// MCC é numérico de até 4 dígitos. Array de 10000 entradas
-	// elimina hash lookup e cabe em ~40KB. -1 = MCC desconhecido (usa default 0.5).
 	mccRiskArr [10000]float32
 	mccDefault float32 = 0.5
 )
@@ -71,8 +68,6 @@ func Init(normPath, mccPath string) error {
 	return nil
 }
 
-// parseMCC converte uma string numérica (até 4 dígitos) em int.
-// Retorna -1 se contiver caractere não numérico — caímos no default.
 func parseMCC(s string) int {
 	n := 0
 	for i := 0; i < len(s); i++ {

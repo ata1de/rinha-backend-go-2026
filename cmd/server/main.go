@@ -20,9 +20,6 @@ var (
 	ready bool
 )
 
-// Respostas pré-fabricadas: fraud_score só assume 6 valores possíveis (0/5..5/5).
-// Threshold de aprovação é score < 0.6 → contagem < 3 → approved=true.
-// Pré-computar elimina marshaling de JSON e qualquer alocação no hot path.
 var fraudResponses = [6][]byte{
 	[]byte(`{"approved":true,"fraud_score":0.0}`),
 	[]byte(`{"approved":true,"fraud_score":0.2}`),
@@ -49,8 +46,6 @@ var payloadPool = sync.Pool{
 }
 
 func main() {
-	// Em container de 0.45 CPU, GOMAXPROCS=1 evita thrash de scheduler
-	// e elimina a contenção de Ps competindo pela mesma fração de CPU.
 	if v := os.Getenv("GOMAXPROCS"); v == "" {
 		runtime.GOMAXPROCS(1)
 	}
@@ -74,8 +69,6 @@ func main() {
 		log.Fatal("dataset.Load:", err)
 	}
 
-	// Aquece o caminho quente: garante código JIT/inlinado e
-	// que páginas estão residentes antes do primeiro tráfego real.
 	warmup()
 
 	ready = true
@@ -87,6 +80,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("GET /ready", handleReady)
 	mux.HandleFunc("POST /fraud-score", handleFraudScore)
 
@@ -113,9 +107,10 @@ func warmup() {
 		Terminal:    vectorize.Terminal{IsOnline: false, CardPresent: true, KmFromHome: 13.71},
 		LastTx:      &vectorize.LastTx{Timestamp: "2026-03-11T14:58:35Z", KmFromCurrent: 18.86},
 	}
+
 	for i := 0; i < 200; i++ {
 		v := vectorize.Vectorize(&p)
-		_ = db.Tree.Search(v) // VP Tree já está pronta em db — só consulta
+		_ = db.Tree.Search(v)
 	}
 }
 
@@ -154,7 +149,6 @@ func handleFraudScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := payloadPool.Get().(*vectorize.Payload)
-	// Reset do que importa — outros campos serão sobrescritos pelo Unmarshal.
 	p.LastTx = nil
 	if err := json.Unmarshal(buf, p); err != nil {
 		payloadPool.Put(p)
@@ -163,12 +157,13 @@ func handleFraudScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vec := vectorize.Vectorize(p)
-	count := db.Tree.Search(vec) // O(log N) via VP Tree em vez de O(N) scan linear
+	count := db.Tree.Search(vec)
 	payloadPool.Put(p)
 
 	if count > 5 {
 		count = 5
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(fraudResponses[count])
 }
